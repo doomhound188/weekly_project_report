@@ -1,0 +1,19 @@
+# Environment files
+.env
+.env.cron
+
+# Temporary files
+temp_roadmap.xlsx
+*.pyc
+__pycache__/
+
+# Generated reports (keep in reports/ directory)
+weekly_report_*.txt
+*.eml
+
+# IDE
+.vscode/
+.idea/
+
+# Docker
+.docker/

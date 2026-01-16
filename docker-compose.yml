@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  weekly-report:
+    build: .
+    container_name: weekly-report-generator
+    restart: unless-stopped
+    
+    # Mount environment file
+    env_file:
+      - .env
+    
+    # Mount volumes for persistence
+    volumes:
+      # Output reports directory (optional - to access generated reports)
+      - ./reports:/app/reports
+    
+    # Environment variables
+    environment:
+      - TZ=America/Toronto
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 30m
+      timeout: 10s
+      retries: 3
+
+# To run manually:
+#   docker-compose run --rm weekly-report python main.py
+#
+# To run with email:
+#   docker-compose run --rm weekly-report python main.py --send-email
+#
+# To start the cron scheduler:
+#   docker-compose up -d
+#
+# To view logs:
+#   docker-compose logs -f
