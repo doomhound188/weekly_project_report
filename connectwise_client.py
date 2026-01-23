@@ -158,3 +158,52 @@ class ConnectWiseClient:
                 entry["_ticket_details"] = ticket_cache[ticket_id]
 
         return entries
+
+    def get_members(self) -> list[dict]:
+        """
+        Fetch all members from ConnectWise, excluding API accounts.
+        
+        Returns:
+            List of member dictionaries with id, identifier, name, and email
+        """
+        all_members = []
+        page = 1
+        page_size = 100
+
+        while True:
+            params = {
+                "page": page,
+                "pageSize": page_size,
+                "orderBy": "identifier asc"
+            }
+
+            response = requests.get(
+                f"{self.base_url}/system/members",
+                headers=self.headers,
+                params=params
+            )
+            response.raise_for_status()
+            
+            members = response.json()
+            if not members:
+                break
+            
+            # Filter out API accounts (licenseClass = "A")
+            for member in members:
+                if member.get("licenseClass") != "A" and member.get("inactiveFlag") != True:
+                    all_members.append({
+                        "id": member.get("id"),
+                        "identifier": member.get("identifier"),
+                        "firstName": member.get("firstName", ""),
+                        "lastName": member.get("lastName", ""),
+                        "name": f"{member.get('firstName', '')} {member.get('lastName', '')}".strip(),
+                        "email": member.get("officeEmail", "")
+                    })
+            
+            if len(members) < page_size:
+                break
+                
+            page += 1
+
+        return all_members
+

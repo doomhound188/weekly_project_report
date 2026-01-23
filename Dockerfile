@@ -16,6 +16,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application files
 COPY *.py ./
+COPY services/ ./services/
+COPY static/ ./static/
+COPY templates/ ./templates/
 
 # Copy entrypoint and crontab
 COPY entrypoint.sh /entrypoint.sh
@@ -28,6 +31,9 @@ RUN crontab /etc/cron.d/weekly-report
 
 # Create log file
 RUN touch /var/log/cron.log
+
+# Expose port for web interface
+EXPOSE 5000
 
 # Set entrypoint
 ENTRYPOINT ["/entrypoint.sh"]

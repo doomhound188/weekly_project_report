@@ -4,6 +4,6 @@
 # Format: minute hour day-of-month month day-of-week command
 # Day of week: 0=Sunday, 5=Friday
 
-0 12 * * 5 cd /app && python main.py --mode auto >> /var/log/cron.log 2>&1
+0 12 * * 5 cd /app && python main.py --cli --mode auto >> /var/log/cron.log 2>&1
 
 # Empty line required at end of crontab file

@@ -112,7 +112,7 @@ class GeminiSummarizer(BaseSummarizer):
     DEFAULT_MODEL = "gemini-3-pro-preview"
 
     def __init__(self, model: Optional[str] = None):
-        import google.generativeai as genai
+        from google import genai
 
         api_key = os.getenv("GOOGLE_API_KEY")
         if not api_key:
@@ -121,13 +121,16 @@ class GeminiSummarizer(BaseSummarizer):
         # Use provided model, env var, or default
         model = model or os.getenv("AI_MODEL") or self.DEFAULT_MODEL
         
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel(model)
+        self.client = genai.Client(api_key=api_key)
+        self.model_name = model
         self.provider_name = f"Google Gemini ({model})"
 
     def summarize_entries(self, grouped_entries: dict[str, list[dict]], report_date: str) -> str:
         prompt = self._build_prompt(grouped_entries, report_date)
-        response = self.model.generate_content(prompt)
+        response = self.client.models.generate_content(
+            model=self.model_name,
+            contents=prompt
+        )
         return response.text
 
 

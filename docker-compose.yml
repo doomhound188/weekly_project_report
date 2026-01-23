@@ -1,10 +1,44 @@
 version: '3.8'
 
 services:
-  weekly-report:
+  # Web Interface Service
+  web:
     build: .
-    container_name: weekly-report-generator
+    container_name: weekly-report-web
     restart: unless-stopped
+    command: ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "--timeout", "120", "app:app"]
+    
+    # Mount environment file
+    env_file:
+      - .env
+    
+    # Port mapping for web interface
+    ports:
+      - "5000:5000"
+    
+    # Mount volumes for persistence
+    volumes:
+      - ./reports:/app/reports
+    
+    # Environment variables
+    environment:
+      - TZ=America/Toronto
+      - WEB_PORT=5000
+      - WEB_HOST=0.0.0.0
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Cron Service (scheduled CLI reports)
+  cron:
+    build: .
+    container_name: weekly-report-cron
+    restart: unless-stopped
+    command: ["/entrypoint.sh"]
     
     # Mount environment file
     env_file:
@@ -12,7 +46,6 @@ services:
     
     # Mount volumes for persistence
     volumes:
-      # Output reports directory (optional - to access generated reports)
       - ./reports:/app/reports
     
     # Environment variables
@@ -26,14 +59,18 @@ services:
       timeout: 10s
       retries: 3
 
-# To run manually:
-#   docker-compose run --rm weekly-report python main.py
+# To run the web interface:
+#   docker-compose up web
 #
-# To run with email:
-#   docker-compose run --rm weekly-report python main.py --send-email
+# To run the cron scheduler:
+#   docker-compose up cron
 #
-# To start the cron scheduler:
-#   docker-compose up -d
+# To run both:
+#   docker-compose up
+#
+# To run CLI manually:
+#   docker-compose run --rm web python main.py --cli
 #
 # To view logs:
-#   docker-compose logs -f
+#   docker-compose logs -f web
+#   docker-compose logs -f cron

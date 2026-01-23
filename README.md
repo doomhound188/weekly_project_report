@@ -1,19 +1,54 @@
 # Weekly Project Progress Report Generator
 
-Automate your weekly project status reports by fetching timesheet data from ConnectWise PSA, organizing it with AI, and optionally comparing against your SharePoint project roadmap.
+**Web-based interface** for generating weekly project status reports by fetching timesheet data from ConnectWise PSA, organizing it with AI, and optionally comparing against your SharePoint project roadmap.
 
-## Features
+## 🌟 Features
 
-- 📊 **ConnectWise PSA Integration** - Automatically fetches your last 7 days of time entries
+- 🌐 **Web Interface** - User-friendly browser interface for any team member
+- 👥 **Member Selection** - Select any team member to generate their report
+- 📊 **ConnectWise PSA Integration** - Automatically fetches time entries
 - 🤖 **Multi-Provider AI** - Supports OpenAI (GPT-4), Anthropic (Claude), or Google Gemini
 - 📋 **Strict Template Format** - Follows your organization's report template exactly
 - 📁 **SharePoint Integration** - Compare against your project roadmap Excel file
 - 📧 **Email Automation** - Send reports via Microsoft Graph API
-- 🐳 **Docker Support** - Schedule automatic Friday 12:00 PM reports
+- 🐳 **Docker Support** - Easy deployment with both web and scheduled modes
+- 🔄 **CLI Mode** - Backward compatible for automation and cron jobs
 
-## Quick Start
+## 🚀 Quick Start
 
-### Prerequisites
+### Web Interface (Recommended)
+
+```bash
+# 1. Install dependencies
+pip install -r requirements.txt
+
+# 2. Configure environment
+cp .env.example .env
+# Edit .env with your credentials
+
+# 3. Start the web server
+python app.py
+
+# 4. Open browser to http://localhost:5000
+```
+
+### CLI Mode (for automation)
+
+```bash
+# Generate report for configured user
+python main.py --cli
+
+# Generate and send via email
+python main.py --cli --send-email
+
+# Include SharePoint comparison
+python main.py --cli --compare-projects
+
+# Full auto mode (for scheduled jobs)
+python main.py --cli --mode auto
+```
+
+## 📋 Prerequisites
 
 - Python 3.9+
 - ConnectWise PSA API credentials
@@ -21,39 +56,7 @@ Automate your weekly project status reports by fetching timesheet data from Conn
   - Google Gemini API key
   - OpenAI API key
   - Anthropic API key
-
-### Installation
-
-```bash
-# Clone or download the project
-cd weekly_project_report
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Configure environment
-cp .env.example .env
-# Edit .env with your credentials
-```
-
-### Usage
-
-```bash
-# Generate report to file
-python main.py
-
-# Generate and send via email
-python main.py --send-email
-
-# Include SharePoint project comparison
-python main.py --compare-projects
-
-# Full auto mode (for scheduled jobs)
-python main.py --mode auto
-
-# Use a specific AI provider
-python main.py --ai-provider openai
-```
+- (Optional) Microsoft Graph API credentials for SharePoint/Email
 
 ## Configuration
 
@@ -94,22 +97,53 @@ EMAIL_SENDER=user@yourcompany.com
 MEMBER_INITIALS=XY
 ```
 
-## Docker Deployment
+## 🐳 Docker Deployment
+
+### Web Interface Only
+
+```bash
+# Build and start the web interface
+docker-compose up web
+
+# Access at http://localhost:5000
+
+# Run in background
+docker-compose up -d web
+
+# View logs
+docker-compose logs -f web
+```
+
+### Scheduled Reports (Cron)
 
 Run the report generator automatically every Friday at 12:00 PM:
 
 ```bash
-# Build the container
-docker-compose build
-
-# Start the scheduler
-docker-compose up -d
+# Start the cron scheduler
+docker-compose up -d cron
 
 # View logs
-docker-compose logs -f
+docker-compose logs -f cron
+```
 
-# Run manually
-docker-compose run --rm weekly-report python main.py
+### Both Services
+
+```bash
+# Run both web interface and scheduled reports
+docker-compose up -d
+
+# Stop all services
+docker-compose down
+```
+
+### Manual CLI Execution in Docker
+
+```bash
+# Run report generation manually
+docker-compose run --rm web python main.py --cli
+
+# Run with email
+docker-compose run --rm web python main.py --cli --send-email
 ```
 
 ## Report Format
@@ -150,19 +184,27 @@ To enable SharePoint and email features:
 4. Create a client secret
 5. Add credentials to `.env`
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 weekly_project_report/
-├── main.py                 # Entry point with CLI
+├── app.py                  # Flask web application
+├── main.py                 # CLI entry point
+├── services/
+│   ├── __init__.py
+│   └── report_service.py   # Business logic layer
 ├── connectwise_client.py   # ConnectWise PSA API client
 ├── ai_summarizer.py        # Multi-provider AI (OpenAI/Anthropic/Gemini)
-├── gemini_summarizer.py    # Legacy Gemini-only (deprecated)
 ├── report_generator.py     # Report formatting and output
 ├── graph_client.py         # Microsoft Graph API client
 ├── sharepoint_projects.py  # SharePoint Excel parser
+├── static/
+│   └── css/
+│       └── style.css       # Modern UI styles
+├── templates/
+│   └── index.html          # Web interface template
 ├── Dockerfile              # Container build
-├── docker-compose.yml      # Container orchestration
+├── docker-compose.yml      # Container orchestration (web + cron)
 ├── entrypoint.sh           # Container startup
 ├── crontab                 # Friday 12:00 PM schedule
 ├── requirements.txt        # Python dependencies

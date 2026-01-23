@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weekly Project Report Generator</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            {% if user %}
+            <div style="position: absolute; top: 1rem; right: 1rem; font-size: 0.9rem;">
+                <span style="color: var(--text-secondary);">Welcome, {{ user.name }}</span>
+                <a href="{{ url_for('auth.logout') }}"
+                    style="color: #667eea; text-decoration: none; margin-left: 1rem;">Logout</a>
+            </div>
+            {% endif %}
+            <h1>📊 Weekly Report Generator</h1>
+            <p class="subtitle">Generate professional weekly progress reports in seconds</p>
+        </header>
+
+        <!-- Alert Messages -->
+        {% if error %}
+        <div class="alert alert-error">
+            ❌ {{ error }}
+        </div>
+        {% endif %}
+
+        {% if success %}
+        <div class="alert alert-success">
+            ✅ {{ success }}
+        </div>
+        {% endif %}
+
+        <!-- Main Card -->
+        <div class="card">
+            <form method="POST" action="{{ url_for('generate') }}">
+                <!-- Member Selection -->
+                <div class="form-section">
+                    <label for="member_id" class="form-label">Select Team Member</label>
+                    <div class="select-wrapper">
+                        <select id="member_id" name="member_id" required>
+                            <option value="">-- Select a team member --</option>
+                            {% for member in members %}
+                            <option value="{{ member.identifier }}" {% if selected_member==member.identifier
+                                %}selected{% endif %}>
+                                {{ member.name }} ({{ member.identifier }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Days Selection -->
+                <div class="form-section">
+                    <label for="days" class="form-label">Lookback Period</label>
+                    <div class="select-wrapper">
+                        <select id="days" name="days">
+                            <option value="7" selected>Last 7 days</option>
+                            <option value="14">Last 14 days</option>
+                            <option value="30">Last 30 days</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Options -->
+                <div class="form-section">
+                    <label class="form-label">Report Options</label>
+                    <div class="checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="compare_projects" name="compare_projects" {% if compare_projects
+                                %}checked{% endif %}>
+                            <span>📋 Include SharePoint Comparison</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="send_email" name="send_email" {% if send_email %}checked{% endif
+                                %}>
+                            <span>📧 Send via Email</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Generate Button -->
+                <button type="submit" class="btn btn-primary btn-full">
+                    🚀 Generate Report
+                </button>
+            </form>
+        </div>
+
+        <!-- Report Display -->
+        {% if report %}
+        <div class="card report-container active">
+            <div class="report-header">
+                <h2>Generated Report</h2>
+                <div class="report-meta">
+                    <span class="meta-badge">{{ report.ai_provider }}</span>
+                    <span class="meta-badge">{{ report.entry_count }} time entries</span>
+                    <span class="meta-badge">{{ report.project_count }} projects</span>
+                </div>
+            </div>
+
+            <div class="report-info">
+                <strong>Subject:</strong> {{ report.subject }}
+            </div>
+
+            <div class="report-content">{{ report.text }}</div>
+
+            <!-- Download Form -->
+            <form method="POST" action="{{ url_for('download') }}" style="margin-top: 1rem;">
+                <input type="hidden" name="report_text" value="{{ report.text }}">
+                <input type="hidden" name="report_subject" value="{{ report.subject }}">
+                <button type="submit" class="btn btn-secondary" style="width: 100%;">
+                    💾 Download as TXT
+                </button>
+            </form>
+        </div>
+        {% endif %}
+
+        <!-- Footer -->
+        <footer
+            style="text-align: center; margin-top: 3rem; padding: 2rem 0; color: var(--text-muted); font-size: 0.9rem;">
+            <p>Weekly Project Report Generator &copy; 2026</p>
+            <p style="margin-top: 0.5rem;">Powered by ConnectWise PSA & AI</p>
+        </footer>
+    </div>
+</body>
+
+</html>

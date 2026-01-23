@@ -1,6 +1,7 @@
 # Environment files
 .env
 .env.cron
+.venv/
 
 # Temporary files
 temp_roadmap.xlsx
@@ -17,3 +18,7 @@ weekly_report_*.txt
 
 # Docker
 .docker/
+
+# Flask
+instance/
+.pytest_cache/

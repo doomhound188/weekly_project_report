@@ -82,17 +82,36 @@ def main():
     """Main entry point for the report generator."""
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Weekly Project Progress Report Generator")
+    parser.add_argument("--cli", action="store_true", help="Run in CLI mode (for automated jobs)")
     parser.add_argument("--send-email", action="store_true", help="Send report via email")
     parser.add_argument("--compare-projects", action="store_true", help="Compare with SharePoint roadmap")
     parser.add_argument("--mode", choices=["manual", "auto"], default="manual",
                         help="Execution mode: manual (interactive) or auto (for cron)")
     parser.add_argument("--ai-provider", choices=["gemini", "openai", "anthropic"],
                         help="AI provider to use (auto-detected if not specified)")
+    parser.add_argument("--member", help="ConnectWise member identifier (e.g., 'john.doe')")
     parser.add_argument("--test-graph", action="store_true", help="Test Graph API connection")
     args = parser.parse_args()
+    
+    # If not in CLI mode, show message about web interface
+    if not args.cli and not args.test_graph:
+        print("=" * 50)
+        print("Weekly Project Report Generator")
+        print("=" * 50)
+        print()
+        print("💡 Tip: Use the web interface for easier report generation!")
+        print("   Start the web server with: python app.py")
+        print()
+        print("   Or use CLI mode with: python main.py --cli")
+        print()
+        return
 
     # Load environment variables
     load_dotenv()
+
+    # Override member ID if specified in CLI
+    if args.member:
+        os.environ["CW_MEMBER_ID"] = args.member
 
     print("=" * 50)
     print("Weekly Project Progress Report Generator")
@@ -128,7 +147,10 @@ def main():
         print("      Done enriching entries")
 
         print("[4/6] Organizing entries and generating AI summary...")
-        member_initials = os.getenv("MEMBER_INITIALS", "AN")
+        if args.member:
+            member_initials = args.member[:2].upper()
+        else:
+            member_initials = os.getenv("MEMBER_INITIALS", "AN")
         generator = ReportGenerator(member_initials=member_initials)
         grouped = generator.group_entries_by_project(entries)
         print(f"      Found {len(grouped)} unique projects/tickets")
