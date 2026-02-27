@@ -1,39 +1,33 @@
-FROM python:3.11-slim
+# ── Build Stage ──────────────────────────────────────────────────
+FROM golang:1.25-alpine AS builder
 
-# Set timezone to Eastern for proper Friday scheduling
-ENV TZ=America/Toronto
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+RUN apk add --no-cache git
 
-# Install cron
-RUN apt-get update && apt-get install -y cron && rm -rf /var/lib/apt/lists/*
-
-# Set working directory
 WORKDIR /app
 
-# Copy requirements and install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY go.mod go.sum ./
+RUN go mod download
 
-# Copy application files
-COPY *.py ./
-COPY services/ ./services/
-COPY static/ ./static/
-COPY templates/ ./templates/
+COPY . .
 
-# Copy entrypoint and crontab
-COPY entrypoint.sh /entrypoint.sh
-COPY crontab /etc/cron.d/weekly-report
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /weekly-report .
 
-# Set permissions
-RUN chmod +x /entrypoint.sh
-RUN chmod 0644 /etc/cron.d/weekly-report
-RUN crontab /etc/cron.d/weekly-report
+# ── Runtime Stage ────────────────────────────────────────────────
+FROM alpine:3.21
 
-# Create log file
-RUN touch /var/log/cron.log
+# Timezone
+ENV TZ=America/Toronto
+RUN apk add --no-cache tzdata && \
+    ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
+    echo $TZ > /etc/timezone
 
-# Expose port for web interface
+WORKDIR /app
+
+# Copy binary and web assets
+COPY --from=builder /weekly-report /app/weekly-report
+COPY web/ /app/web/
+
+# Expose web port
 EXPOSE 5000
 
-# Set entrypoint
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/app/weekly-report"]

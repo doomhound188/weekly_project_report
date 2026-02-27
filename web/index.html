@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weekly Project Report Generator</title>
+    <meta name="description"
+        content="Generate professional weekly progress reports from ConnectWise PSA timesheets with AI summarization.">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div id="user-bar" class="user-bar" style="display:none;">
+                <span id="user-name" class="user-name"></span>
+                <a href="/auth/logout" class="logout-link">Logout</a>
+            </div>
+            <h1>📊 Weekly Report Generator</h1>
+            <p class="subtitle">Generate professional weekly progress reports in seconds</p>
+        </header>
+
+        <!-- Alert Messages -->
+        <div id="alert-container"></div>
+
+        <!-- Main Card -->
+        <div class="card">
+            <form id="report-form">
+                <!-- Member Selection -->
+                <div class="form-section">
+                    <label for="member_id" class="form-label">Select Team Member</label>
+                    <div class="select-wrapper">
+                        <select id="member_id" name="member_id" required>
+                            <option value="">-- Loading members... --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Days Selection -->
+                <div class="form-section">
+                    <label for="days" class="form-label">Lookback Period</label>
+                    <div class="select-wrapper">
+                        <select id="days" name="days">
+                            <option value="7" selected>Last 7 days</option>
+                            <option value="14">Last 14 days</option>
+                            <option value="30">Last 30 days</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- End Date Selection -->
+                <div class="form-section">
+                    <label for="end_date" class="form-label">Report End Date</label>
+                    <input type="date" id="end_date" name="end_date" class="date-input">
+                    <p class="form-hint">Defaults to today. Pick an earlier date to look back from a different starting
+                        point.</p>
+                </div>
+
+                <!-- Options -->
+                <div class="form-section">
+                    <label class="form-label">Report Options</label>
+                    <div class="checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="compare_projects" name="compare_projects">
+                            <span>📋 Include SharePoint Comparison</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="send_email" name="send_email">
+                            <span>📧 Send via Email</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="schedule_week" name="schedule_week">
+                            <span>📅 Schedule Week Ahead</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Generate Button -->
+                <button type="submit" id="generate-btn" class="btn btn-primary btn-full">
+                    🚀 Generate Report
+                </button>
+            </form>
+
+            <!-- Loading -->
+            <div id="progress-container" class="progress-container">
+                <div class="progress-bar">
+                    <div id="progress-fill" class="progress-fill" style="width: 0%"></div>
+                </div>
+                <p class="progress-text" id="progress-text">Generating report...</p>
+            </div>
+        </div>
+
+        <!-- Report Display -->
+        <div id="report-container" class="card report-container">
+            <div class="report-header">
+                <h2>Generated Report</h2>
+                <div id="report-meta" class="report-meta"></div>
+            </div>
+
+            <div id="report-info" class="report-info"></div>
+            <div id="report-content" class="report-content"></div>
+
+            <div class="btn-row" style="margin-top: 1rem; display: flex; gap: 0.75rem;">
+                <button id="download-btn" class="btn btn-secondary" style="flex: 1;">
+                    💾 Download as TXT
+                </button>
+            </div>
+        </div>
+
+        <!-- Schedule Display -->
+        <div id="schedule-container" class="card schedule-container">
+            <div class="report-header">
+                <h2>📅 Proposed Schedule</h2>
+                <div id="schedule-meta" class="report-meta"></div>
+            </div>
+            <div id="schedule-grid" class="schedule-grid"></div>
+            <div id="schedule-unscheduled" class="schedule-unscheduled"></div>
+            <button id="schedule-confirm-btn" class="btn btn-primary btn-full" style="margin-top: 1rem;">
+                ✅ Confirm & Create in ConnectWise
+            </button>
+        </div>
+
+        <!-- Footer -->
+        <footer>
+            <p>Weekly Project Report Generator &copy; 2026</p>
+            <p style="margin-top: 0.5rem;">Powered by ConnectWise PSA & AI</p>
+        </footer>
+    </div>
+
+    <script src="/js/app.js"></script>
+</body>
+
+</html>

@@ -22,7 +22,7 @@ For EACH project, you MUST follow this EXACT format structure. Use a numbered li
 3. Completed This Week:
    * {Summarize accomplishments as bullet points. If no work done, write "No updates; focus remained on other priorities."}
 4. Planned for Next Week:
-   * {Infer next steps as bullet points. If work complete, write "N/A (task completed)."}
+   * {ONE single, specific next step. See NEXT STEP RULES below. If work is complete, write "N/A (task completed)."}
 
 CRITICAL FORMATTING RULES:
 1. The project header line should include company name, project name, and ticket numbers - NO BOLD, NO ASTERISKS
@@ -33,10 +33,21 @@ CRITICAL FORMATTING RULES:
 6. ConnectWise Calendar is typically "Yes" unless it's a completed project
 7. Group all time entries by project and summarize into cohesive bullet points
 8. Use professional, concise language in past tense for "Completed This Week"
-9. For "Planned for Next Week", infer logical next steps based on the work context
-10. Separate each project section with a blank line
-11. ABSOLUTELY NO MARKDOWN - no ** symbols, no __ symbols, no # symbols - this is plain text for Outlook email
-12. Output ONLY plain text that can be directly pasted into an email
+9. Separate each project section with a blank line
+10. ABSOLUTELY NO MARKDOWN - no ** symbols, no __ symbols, no # symbols - this is plain text for Outlook email
+11. Output ONLY plain text that can be directly pasted into an email
+
+NEXT STEP RULES (for section 4 "Planned for Next Week"):
+- Provide EXACTLY ONE next step per project. Do NOT list multiple bullet points. Techs should not feel overwhelmed.
+- The next step must be the single most important, logical action that naturally follows from what was completed this week.
+- Think carefully about what phase the project is in:
+  * If work just started (setup, discovery, initial config): suggest the next build/implementation step.
+  * If actively building (mid-project): suggest the next milestone or deliverable, not a repeat of what was already done.
+  * If nearing completion (testing, final config, handoff): suggest validation, documentation, or client handoff.
+  * If the project end date is approaching: prioritize the most critical remaining deliverable.
+  * If only minor/routine work was logged: suggest continuing the main project objective rather than restating the minor task.
+- Be specific and actionable. Bad: "Continue working on the project." Good: "Deploy updated bot to production Teams environment and confirm proactive messaging with Rewst."
+- Never suggest generic filler like "follow up" or "continue progress" -- every next step should be something concrete the tech can act on.
 
 EXAMPLE OUTPUT (follow this EXACT structure with NO markdown formatting):
 Infinity Network Solutions | Automation: Teams Bot (InfiniBot) (#209066 / #209067)
@@ -48,7 +59,7 @@ Infinity Network Solutions | Automation: Teams Bot (InfiniBot) (#209066 / #20906
 3. Completed This Week:
    * Built Azure bot resources, validated manifest, resolved identity mismatch, and published bot for testing.
 4. Planned for Next Week:
-   * Finalize proactive messaging integration with Rewst and document deployment process.
+   * Deploy bot to production Teams environment and validate proactive messaging triggers from Rewst.
 """
 
 

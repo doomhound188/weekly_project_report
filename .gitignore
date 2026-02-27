@@ -1,16 +1,16 @@
 # Environment files
 .env
 .env.cron
-.venv/
 
 # Temporary files
 temp_roadmap.xlsx
-*.pyc
-__pycache__/
 
-# Generated reports (keep in reports/ directory)
-weekly_report_*.txt
-*.eml
+# Generated reports
+reports/
+
+# Go
+*.exe
+weekly-report
 
 # IDE
 .vscode/
@@ -19,6 +19,10 @@ weekly_report_*.txt
 # Docker
 .docker/
 
-# Flask
-instance/
-.pytest_cache/
+# Legacy Python
+legacy-python/.venv/
+legacy-python/__pycache__/
+legacy-python/*.pyc
+legacy-python/instance/
+legacy-python/.pytest_cache/
+legacy-python/flask_session/
