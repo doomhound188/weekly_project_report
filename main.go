@@ -110,6 +110,18 @@ func main() {
 	}
 	gen := report.NewGenerator(initials)
 	grouped := gen.GroupEntriesByProject(entries)
+
+	// Collect non-project work context (tickets, general tasks) for AI citations
+	nonProjectContext := gen.CollectNonProjectEntries(entries)
+
+	// Fetch all assigned projects and merge in any with no time entries
+	if assignedProjects, err := cwClient.GetMemberProjects(cfg.CWMemberID); err == nil {
+		gen.MergeAssignedProjects(grouped, assignedProjects)
+		fmt.Printf("      Found %d assigned projects total\n", len(assignedProjects))
+	} else {
+		fmt.Printf("      ⚠️  Could not fetch assigned projects: %v\n", err)
+	}
+
 	fmt.Printf("      Found %d unique projects/tickets\n", len(grouped))
 
 	summarizer, err := ai.NewSummarizer(cfg, *aiProvider)
@@ -120,7 +132,24 @@ func main() {
 	fmt.Printf("      Using AI provider: %s\n", summarizer.ProviderName())
 
 	reportDate := time.Now()
-	reportBody, err := summarizer.SummarizeEntries(grouped, reportDate.Format("2006-01-02"))
+
+	// Compute calendar status: check if any project tickets are scheduled next week
+	var calendarStatus map[string]bool
+	if calendar, err := cwClient.GetMemberCalendar(cfg.CWMemberID); err == nil {
+		daysUntilMonday := (8 - int(reportDate.Weekday())) % 7
+		if daysUntilMonday == 0 {
+			daysUntilMonday = 7
+		}
+		nextMonday := time.Date(reportDate.Year(), reportDate.Month(), reportDate.Day()+daysUntilMonday, 0, 0, 0, 0, reportDate.Location())
+		nextFriday := nextMonday.AddDate(0, 0, 4)
+		_ = calendar // calendar fetched for validation; schedule entries are the key data
+
+		if schedEntries, err := cwClient.GetScheduleEntries(cfg.CWMemberID, nextMonday, nextFriday.Add(24*time.Hour)); err == nil {
+			calendarStatus = schedule.CheckCalendarStatus(grouped, schedEntries)
+		}
+	}
+
+	reportBody, err := summarizer.SummarizeEntries(grouped, reportDate.Format("2006-01-02"), calendarStatus, nonProjectContext)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "❌ Error: %v\n", err)
 		os.Exit(1)

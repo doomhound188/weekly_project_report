@@ -23,11 +23,13 @@ For EACH project, you MUST follow this EXACT format structure. Use a numbered li
 1. Project is On-Track: Yes
    * End Date: {date like "January 16" or "Ongoing"}
    * Notes: {brief context - ONLY include this bullet if there are relevant notes}
-2. ConnectWise Calendar set for week(s) Ahead: Yes
+2. ConnectWise Calendar set for week(s) Ahead: {use the calendar status provided per project}
+   * If the project data below shows "Calendar Scheduled: Yes" then output "Yes"
+   * If the project data below shows "Calendar Scheduled: No" then output "No"
 3. Completed This Week:
-   * {Summarize accomplishments as bullet points. If no work done, write "No updates; focus remained on other priorities."}
-4. Planned for Next Week:
-   * {ONE single, specific next step. See NEXT STEP RULES below. If work is complete, write "N/A (task completed)."}
+   * {Summarize accomplishments as bullet points. If no work was done on this project, write "No updates; focus remained on other priorities" and cite the non-project work summary provided below.}
+4. Planned for Next Week (Suggested):
+   * {ONE single, specific suggested next step. See NEXT STEP RULES below. If work is complete, write "N/A (task completed)."}
 
 CRITICAL FORMATTING RULES:
 1. The project header line should include company name, project name, and ticket numbers - NO BOLD, NO ASTERISKS
@@ -35,24 +37,29 @@ CRITICAL FORMATTING RULES:
 3. Use nested bullet points (*) for sub-items under each numbered item
 4. End Date should be formatted as "January 16" not "2026-01-16"
 5. Notes bullet is OPTIONAL - only include if there's meaningful context to add
-6. ConnectWise Calendar is typically "Yes" unless it's a completed project
+6. ConnectWise Calendar should match the per-project "Calendar Scheduled" value provided in the data below
 7. Group all time entries by project and summarize into cohesive bullet points
 8. Use professional, concise language in past tense for "Completed This Week"
 9. Separate each project section with a blank line
 10. ABSOLUTELY NO MARKDOWN - no ** symbols, no __ symbols, no # symbols - this is plain text for Outlook email
 11. Output ONLY plain text that can be directly pasted into an email
 
-NEXT STEP RULES (for section 4 "Planned for Next Week"):
-- Provide EXACTLY ONE next step per project. Do NOT list multiple bullet points. Techs should not feel overwhelmed.
-- The next step must be the single most important, logical action that naturally follows from what was completed this week.
+NEXT STEP RULES (for section 4 "Planned for Next Week (Suggested)"):
+Section 4 is an AI-SUGGESTED next step. The technician will review and update it based on what they actually plan to schedule. Your job is to make the best possible suggestion based on everything you know about the project.
+
+- Provide EXACTLY ONE suggested next step per project. Do NOT list multiple bullet points.
+- Use the "Project Status Summary" data provided below the timesheet entries to make an informed suggestion. Consider:
+  * The project's end date — if the deadline is approaching or overdue, suggest the most critical remaining deliverable.
+  * Total hours logged this week — if hours are low or zero for an active project, the suggestion should reflect catching up or re-engaging.
+  * What was completed this week — the suggestion should logically follow from what was accomplished, not repeat it.
 - Think carefully about what phase the project is in:
   * If work just started (setup, discovery, initial config): suggest the next build/implementation step.
   * If actively building (mid-project): suggest the next milestone or deliverable, not a repeat of what was already done.
   * If nearing completion (testing, final config, handoff): suggest validation, documentation, or client handoff.
-  * If the project end date is approaching: prioritize the most critical remaining deliverable.
   * If only minor/routine work was logged: suggest continuing the main project objective rather than restating the minor task.
 - Be specific and actionable. Bad: "Continue working on the project." Good: "Deploy updated bot to production Teams environment and confirm proactive messaging with Rewst."
-- Never suggest generic filler like "follow up" or "continue progress" -- every next step should be something concrete the tech can act on.
+- Never suggest generic filler like "follow up" or "continue progress" -- every suggestion should be something concrete the tech can act on.
+- If a project's work is fully complete, write "N/A (task completed)."
 
 EXAMPLE OUTPUT (follow this EXACT structure with NO markdown formatting):
 Infinity Network Solutions | Automation: Teams Bot (InfiniBot) (#209066 / #209067)
@@ -63,13 +70,13 @@ Infinity Network Solutions | Automation: Teams Bot (InfiniBot) (#209066 / #20906
 2. ConnectWise Calendar set for week(s) Ahead: Yes
 3. Completed This Week:
    * Built Azure bot resources, validated manifest, resolved identity mismatch, and published bot for testing.
-4. Planned for Next Week:
+4. Planned for Next Week (Suggested):
    * Deploy bot to production Teams environment and validate proactive messaging triggers from Rewst.
 `
 
 // Summarizer is the interface for AI text summarization.
 type Summarizer interface {
-	SummarizeEntries(grouped map[string][]connectwise.TimeEntry, reportDate string) (string, error)
+	SummarizeEntries(grouped map[string][]connectwise.TimeEntry, reportDate string, calendarStatus map[string]bool, nonProjectContext string) (string, error)
 	ProviderName() string
 }
 
@@ -123,13 +130,31 @@ func isValidKey(key string) bool {
 }
 
 // buildPrompt constructs the full prompt from grouped entries.
-func buildPrompt(grouped map[string][]connectwise.TimeEntry, reportDate string) string {
+func buildPrompt(grouped map[string][]connectwise.TimeEntry, reportDate string, calendarStatus map[string]bool, nonProjectContext string) string {
 	var b strings.Builder
 	b.WriteString(ReportTemplate)
 	b.WriteString("\n\nHere are the timesheet entries to summarize:\n\n")
 
+	// Track per-project metadata for the status summary
+	type projectMeta struct {
+		company    string
+		endDate    string
+		totalHours float64
+	}
+	metaMap := make(map[string]*projectMeta)
+
 	for projectName, entries := range grouped {
 		b.WriteString(fmt.Sprintf("--- PROJECT: %s ---\n", projectName))
+
+		meta := &projectMeta{endDate: "Ongoing"}
+		metaMap[projectName] = meta
+
+		if len(entries) == 0 {
+			b.WriteString("  (No time entries this week - assigned project with no activity)\n")
+			b.WriteString("\n")
+			continue
+		}
+
 		for _, e := range entries {
 			company := "Unknown Company"
 			if e.Company != nil && e.Company.Name != "" {
@@ -163,12 +188,56 @@ func buildPrompt(grouped map[string][]connectwise.TimeEntry, reportDate string) 
 			b.WriteString(fmt.Sprintf("  Ticket: %s\n", ticketID))
 			b.WriteString(fmt.Sprintf("  End Date: %s\n", endDate))
 			b.WriteString(fmt.Sprintf("  Notes: %s\n\n", notes))
+
+			// Accumulate metadata
+			meta.totalHours += e.ActualHours
+			if company != "Unknown Company" {
+				meta.company = company
+			}
+			if endDate != "Ongoing" {
+				meta.endDate = endDate
+			}
 		}
+		b.WriteString("\n")
+	}
+
+	// Append project status summary for AI prioritization
+	b.WriteString("\n--- Project Status Summary ---\n")
+	b.WriteString("Use this data to generate the \"Suggested Focus\" section:\n")
+	for projectName, meta := range metaMap {
+		activity := fmt.Sprintf("%.1f hours", meta.totalHours)
+		if meta.totalHours == 0 {
+			activity = "0.0 hours (no activity this week)"
+		}
+		companyLabel := meta.company
+		if companyLabel == "" {
+			companyLabel = "Unknown"
+		}
+		b.WriteString(fmt.Sprintf("- Project: %s | Company: %s | End Date: %s | Hours This Week: %s | Calendar Scheduled: %s\n",
+			projectName, companyLabel, meta.endDate, activity, calendarStatusStr(calendarStatus, projectName)))
+	}
+
+	// Append non-project context for citing "other priorities"
+	if nonProjectContext != "" {
+		b.WriteString("\n--- Non-Project Work Context ---\n")
+		b.WriteString("For projects with NO time entries this week, cite the following non-project work as the reason in the 'Completed This Week' section (e.g. 'No updates; focus remained on other priorities including service tickets and general support.'):\n")
+		b.WriteString(nonProjectContext)
 		b.WriteString("\n")
 	}
 
 	b.WriteString(fmt.Sprintf("\nPlease generate the weekly report for the week ending %s.", reportDate))
 	return b.String()
+}
+
+// calendarStatusStr returns "Yes" or "No" for a project's calendar status.
+func calendarStatusStr(calendarStatus map[string]bool, projectName string) string {
+	if calendarStatus != nil {
+		if calendarStatus[projectName] {
+			return "Yes"
+		}
+		return "No"
+	}
+	return "No"
 }
 
 // ── Gemini ──────────────────────────────────────────────────────────────
@@ -192,8 +261,8 @@ func (g *GeminiSummarizer) ProviderName() string {
 	return fmt.Sprintf("Google Gemini (%s)", g.model)
 }
 
-func (g *GeminiSummarizer) SummarizeEntries(grouped map[string][]connectwise.TimeEntry, reportDate string) (string, error) {
-	prompt := buildPrompt(grouped, reportDate)
+func (g *GeminiSummarizer) SummarizeEntries(grouped map[string][]connectwise.TimeEntry, reportDate string, calendarStatus map[string]bool, nonProjectContext string) (string, error) {
+	prompt := buildPrompt(grouped, reportDate, calendarStatus, nonProjectContext)
 
 	body := map[string]any{
 		"contents": []map[string]any{
@@ -248,8 +317,8 @@ func (o *OpenAISummarizer) ProviderName() string {
 	return fmt.Sprintf("OpenAI (%s)", o.model)
 }
 
-func (o *OpenAISummarizer) SummarizeEntries(grouped map[string][]connectwise.TimeEntry, reportDate string) (string, error) {
-	prompt := buildPrompt(grouped, reportDate)
+func (o *OpenAISummarizer) SummarizeEntries(grouped map[string][]connectwise.TimeEntry, reportDate string, calendarStatus map[string]bool, nonProjectContext string) (string, error) {
+	prompt := buildPrompt(grouped, reportDate, calendarStatus, nonProjectContext)
 
 	body := map[string]any{
 		"model": o.model,
@@ -306,8 +375,8 @@ func (a *AnthropicSummarizer) ProviderName() string {
 	return fmt.Sprintf("Anthropic (%s)", a.model)
 }
 
-func (a *AnthropicSummarizer) SummarizeEntries(grouped map[string][]connectwise.TimeEntry, reportDate string) (string, error) {
-	prompt := buildPrompt(grouped, reportDate)
+func (a *AnthropicSummarizer) SummarizeEntries(grouped map[string][]connectwise.TimeEntry, reportDate string, calendarStatus map[string]bool, nonProjectContext string) (string, error) {
+	prompt := buildPrompt(grouped, reportDate, calendarStatus, nonProjectContext)
 
 	body := map[string]any{
 		"model":      a.model,

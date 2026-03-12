@@ -75,47 +75,74 @@ func PlanWeek(
 	var totalScheduled float64
 
 	for _, est := range sorted {
-		durationMins := int(est.EstimatedHours * 60)
-		placed := false
+		remainingMins := int(est.EstimatedHours * 60)
 
-		for dayIdx := range freeSlots {
-			for slotIdx, slot := range freeSlots[dayIdx] {
-				slotMins := int(slot.end.Sub(slot.start).Minutes())
-
-				if slotMins >= durationMins {
-					// Place block at the start of this slot
-					blockEnd := slot.start.Add(time.Duration(durationMins) * time.Minute)
-
-					block := ProposedBlock{
-						Project:   est.Project,
-						Company:   est.Company,
-						TicketID:  est.TicketID,
-						NextStep:  est.NextStep,
-						DateStart: slot.start,
-						DateEnd:   blockEnd,
-						Hours:     est.EstimatedHours,
-						Day:       slot.start.Format("Monday"),
-						TimeRange: fmt.Sprintf("%s - %s", slot.start.Format("3:04 PM"), blockEnd.Format("3:04 PM")),
+		// Keep placing until the task is fully scheduled or no free time remains
+		for remainingMins > 0 {
+			// Find the day with the most total free time (balanced distribution)
+			bestDay := -1
+			bestFree := 0
+			for dayIdx := range freeSlots {
+				dayFree := 0
+				for _, slot := range freeSlots[dayIdx] {
+					mins := int(slot.end.Sub(slot.start).Minutes())
+					if mins > 0 {
+						dayFree += mins
 					}
-					plan.Blocks = append(plan.Blocks, block)
-					totalScheduled += est.EstimatedHours
-
-					// Shrink the slot
-					freeSlots[dayIdx][slotIdx] = timeSlot{
-						start: blockEnd,
-						end:   slot.end,
-					}
-
-					placed = true
-					break
+				}
+				if dayFree > bestFree {
+					bestFree = dayFree
+					bestDay = dayIdx
 				}
 			}
-			if placed {
-				break
+
+			if bestDay < 0 || bestFree <= 0 {
+				break // No free time left anywhere in the week
+			}
+
+			// Place as much as possible into the best day's slots
+			for slotIdx, slot := range freeSlots[bestDay] {
+				if remainingMins <= 0 {
+					break
+				}
+				slotMins := int(slot.end.Sub(slot.start).Minutes())
+				if slotMins <= 0 {
+					continue
+				}
+
+				allocMins := slotMins
+				if allocMins > remainingMins {
+					allocMins = remainingMins
+				}
+
+				blockEnd := slot.start.Add(time.Duration(allocMins) * time.Minute)
+				blockHours := float64(allocMins) / 60.0
+
+				block := ProposedBlock{
+					Project:   est.Project,
+					Company:   est.Company,
+					TicketID:  est.TicketID,
+					NextStep:  est.NextStep,
+					DateStart: slot.start,
+					DateEnd:   blockEnd,
+					Hours:     blockHours,
+					Day:       slot.start.Format("Monday"),
+					TimeRange: fmt.Sprintf("%s - %s", slot.start.Format("3:04 PM"), blockEnd.Format("3:04 PM")),
+				}
+				plan.Blocks = append(plan.Blocks, block)
+				totalScheduled += blockHours
+
+				// Shrink the slot
+				freeSlots[bestDay][slotIdx] = timeSlot{
+					start: blockEnd,
+					end:   slot.end,
+				}
+
+				remainingMins -= allocMins
 			}
 		}
 
-		if !placed {
+		if remainingMins > 0 {
 			plan.Unscheduled = append(plan.Unscheduled, est)
 		}
 	}
@@ -197,7 +224,7 @@ func buildFreeSlots(
 
 		// Subtract existing schedule entries (skip ignorable activities)
 		for _, entry := range existing {
-			if isIgnorableActivity(entry.Name) {
+			if isIgnorableEntry(entry) {
 				continue
 			}
 
@@ -231,10 +258,23 @@ func buildFreeSlots(
 }
 
 // isIgnorableActivity returns true for schedule entries that should not block
-// task scheduling (e.g. recurring lunch breaks, internal meetings).
+// task scheduling (e.g. recurring lunch breaks, meetings, "No company" entries).
 func isIgnorableActivity(name string) bool {
 	lower := strings.ToLower(name)
-	return strings.Contains(lower, "lunch") || strings.Contains(lower, "meetings")
+	return strings.Contains(lower, "lunch") ||
+		strings.Contains(lower, "meeting") ||
+		strings.Contains(lower, "no company")
+}
+
+// isIgnorableEntry checks both the entry name and company name for ignorable patterns.
+func isIgnorableEntry(entry connectwise.ScheduleEntry) bool {
+	if isIgnorableActivity(entry.Name) {
+		return true
+	}
+	if entry.Company != nil && strings.ToLower(entry.Company.Name) == "no company" {
+		return true
+	}
+	return false
 }
 
 // subtractFromSlots removes a busy period from the free slots.
@@ -263,7 +303,7 @@ func subtractFromSlots(slots []timeSlot, busyStart, busyEnd time.Time) []timeSlo
 	return result
 }
 
-// parseTimeOnDay combines a date with a HH:MM time string.
+// parseTimeOnDay combines a date with a HH:MM or HH:MM:SS time string.
 func parseTimeOnDay(day time.Time, timeStr string, loc *time.Location) time.Time {
 	timeStr = strings.TrimSpace(timeStr)
 	if timeStr == "" {
@@ -271,7 +311,7 @@ func parseTimeOnDay(day time.Time, timeStr string, loc *time.Location) time.Time
 	}
 
 	parts := strings.Split(timeStr, ":")
-	if len(parts) != 2 {
+	if len(parts) < 2 {
 		return time.Time{}
 	}
 

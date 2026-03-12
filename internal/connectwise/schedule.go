@@ -73,6 +73,7 @@ type ScheduleEntry struct {
 	ID        int      `json:"id,omitempty"`
 	ObjectID  int      `json:"objectId,omitempty"`
 	Member    *Ref     `json:"member,omitempty"`
+	Company   *Ref     `json:"company,omitempty"`
 	Type      *TypeRef `json:"type,omitempty"`
 	Status    *Ref     `json:"status,omitempty"`
 	Span      *SpanRef `json:"span,omitempty"`

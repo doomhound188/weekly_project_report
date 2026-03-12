@@ -287,6 +287,41 @@ func (c *Client) GetMembers() ([]Member, error) {
 	return all, nil
 }
 
+// GetMemberProjects fetches all open projects where the member is the manager.
+func (c *Client) GetMemberProjects(memberIdentifier string) ([]ProjectDetails, error) {
+	conditions := fmt.Sprintf("manager/identifier='%s' and closedFlag=false", memberIdentifier)
+
+	var all []ProjectDetails
+	page := 1
+	pageSize := 100
+
+	for {
+		params := url.Values{
+			"conditions": {conditions},
+			"page":       {fmt.Sprintf("%d", page)},
+			"pageSize":   {fmt.Sprintf("%d", pageSize)},
+			"orderBy":    {"name asc"},
+		}
+
+		var projects []ProjectDetails
+		if err := c.doGet("/project/projects", params, &projects); err != nil {
+			return nil, fmt.Errorf("fetching member projects: %w", err)
+		}
+
+		if len(projects) == 0 {
+			break
+		}
+
+		all = append(all, projects...)
+		if len(projects) < pageSize {
+			break
+		}
+		page++
+	}
+
+	return all, nil
+}
+
 func trim(s string) string {
 	// Simple trim for leading/trailing spaces
 	start := 0

@@ -92,7 +92,7 @@ The app detects which provider to use by checking for valid API keys. Placeholde
 
 | Provider  | Default Model                | Env Var             |
 | --------- | ---------------------------- | ------------------- |
-| Gemini    | `gemini-3-pro-preview`       | `GOOGLE_API_KEY`    |
+| Gemini    | `gemini-3.1-pro-preview`       | `GOOGLE_API_KEY`    |
 | OpenAI    | `gpt-5.1`                    | `OPENAI_API_KEY`    |
 | Anthropic | `claude-sonnet-4-20250514`   | `ANTHROPIC_API_KEY` |
 

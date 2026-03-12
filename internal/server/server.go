@@ -183,6 +183,14 @@ func (s *Server) generateHandler(w http.ResponseWriter, r *http.Request) {
 	gen := report.NewGenerator(initials)
 	grouped := gen.GroupEntriesByProject(entries)
 
+	// Collect non-project work context for AI citations
+	nonProjectContext := gen.CollectNonProjectEntries(entries)
+
+	// Fetch all assigned projects and merge in any with no time entries
+	if assignedProjects, err := cwClient.GetMemberProjects(req.MemberID); err == nil {
+		gen.MergeAssignedProjects(grouped, assignedProjects)
+	}
+
 	// AI summarize
 	summarizer, err := ai.NewSummarizer(s.cfg, "")
 	if err != nil {
@@ -190,7 +198,24 @@ func (s *Server) generateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	reportBody, err := summarizer.SummarizeEntries(grouped, reportDate.Format("2006-01-02"))
+	// Compute calendar status: check if any project tickets are scheduled next week
+	var calendarStatus map[string]bool
+	if cwCalendar, err := cwClient.GetMemberCalendar(req.MemberID); err == nil {
+		now := time.Now()
+		daysUntilMonday := (8 - int(now.Weekday())) % 7
+		if daysUntilMonday == 0 {
+			daysUntilMonday = 7
+		}
+		nextMonday := time.Date(now.Year(), now.Month(), now.Day()+daysUntilMonday, 0, 0, 0, 0, now.Location())
+		nextFriday := nextMonday.AddDate(0, 0, 4)
+		_ = cwCalendar // calendar fetched for validation; schedule entries are the key data
+
+		if schedEntries, err := cwClient.GetScheduleEntries(req.MemberID, nextMonday, nextFriday.Add(24*time.Hour)); err == nil {
+			calendarStatus = schedule.CheckCalendarStatus(grouped, schedEntries)
+		}
+	}
+
+	reportBody, err := summarizer.SummarizeEntries(grouped, reportDate.Format("2006-01-02"), calendarStatus, nonProjectContext)
 	if err != nil {
 		jsonResponse(w, GenerateResponse{Success: false, Error: err.Error()})
 		return

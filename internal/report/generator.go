@@ -44,6 +44,10 @@ func (g *Generator) GroupEntriesByProject(entries []connectwise.TimeEntry) map[s
 	grouped := make(map[string][]connectwise.TimeEntry)
 
 	for _, e := range entries {
+		// Skip entries that don't belong to a project
+		if (e.Project == nil || e.Project.ID == 0) && e.ProjectDetails == nil {
+			continue
+		}
 		name := getProjectName(e)
 		if shouldExclude(name) {
 			continue
@@ -52,6 +56,74 @@ func (g *Generator) GroupEntriesByProject(entries []connectwise.TimeEntry) map[s
 	}
 
 	return grouped
+}
+
+// CollectNonProjectEntries builds a summary of non-project work (tickets, general tasks)
+// to provide as context to the AI for citing "other priorities".
+func (g *Generator) CollectNonProjectEntries(entries []connectwise.TimeEntry) string {
+	type taskSummary struct {
+		name  string
+		hours float64
+	}
+	tasks := make(map[string]*taskSummary)
+
+	for _, e := range entries {
+		// Only collect entries that DON'T belong to a project
+		if (e.Project != nil && e.Project.ID > 0) || e.ProjectDetails != nil {
+			continue
+		}
+
+		name := ""
+		if e.TicketDetails != nil && e.TicketDetails.Summary != "" {
+			name = e.TicketDetails.Summary
+		} else if e.Ticket != nil && e.Ticket.Name != "" {
+			name = e.Ticket.Name
+		} else if e.WorkType != nil && e.WorkType.Name != "" {
+			name = e.WorkType.Name
+		} else {
+			name = "General work"
+		}
+
+		if shouldExclude(name) {
+			continue
+		}
+
+		if _, ok := tasks[name]; !ok {
+			tasks[name] = &taskSummary{name: name}
+		}
+		tasks[name].hours += e.ActualHours
+	}
+
+	if len(tasks) == 0 {
+		return ""
+	}
+
+	var lines []string
+	for _, t := range tasks {
+		lines = append(lines, fmt.Sprintf("- %s (%.1f hrs)", t.name, t.hours))
+	}
+	return "Non-project work this week:\n" + strings.Join(lines, "\n")
+}
+
+// MergeAssignedProjects ensures every assigned project appears in the grouped map,
+// adding an empty entry slice for projects with no time entries.
+func (g *Generator) MergeAssignedProjects(grouped map[string][]connectwise.TimeEntry, assignedProjects []connectwise.ProjectDetails) {
+	for _, p := range assignedProjects {
+		if p.Name == "" || shouldExclude(p.Name) {
+			continue
+		}
+		// Check if project is already in grouped (by name match)
+		found := false
+		for name := range grouped {
+			if name == p.Name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			grouped[p.Name] = nil // empty slice = no time entries
+		}
+	}
 }
 
 // GenerateEmailSubject formats the email subject line.
@@ -125,16 +197,7 @@ func getProjectName(e connectwise.TimeEntry) string {
 	if e.Project != nil && e.Project.Name != "" {
 		return e.Project.Name
 	}
-	if e.TicketDetails != nil && e.TicketDetails.Summary != "" {
-		return e.TicketDetails.Summary
-	}
-	if e.Ticket != nil && e.Ticket.Name != "" {
-		return e.Ticket.Name
-	}
-	if e.WorkType != nil && e.WorkType.Name != "" {
-		return "General: " + e.WorkType.Name
-	}
-	return "Uncategorized Work"
+	return "Unknown Project"
 }
 
 func shouldExclude(name string) bool {
