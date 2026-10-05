@@ -135,6 +135,12 @@ podman build --no-cache -t weekly-report:latest -f Dockerfile .
 podman run -d --name weekly-report-web -p 5000:5000 --env-file .env weekly-report:latest
 ```
 
+### Run from GitHub Container Registry
+
+```bash
+podman run -d --name weekly-report-web -p 5000:5000 --env-file .env ghcr.io/doomhound188/weekly-report:latest
+```
+
 ## 📅 Schedule Week Ahead
 
 The schedule feature uses AI to estimate time for each project's next step, then proposes calendar blocks for the upcoming week:
